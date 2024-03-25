@@ -1,8 +1,58 @@
 const asyncHandler = require("express-async-handler");
+const Axios = require("axios");
 const res = require("express/lib/response");
 const Auth = require("../models/AuthModal");
 const { generateToken } = require("../config/generateToken");
 const { getDivisionByID, getDistrictByID, getUpzilaByID, getUnionByID } = require("../_utils/_helper/getAddressById");
+
+const sendOTP = async (mobile, otp) => {
+    const apiKey = 'kM2wn10J3bixbkELZE1oyc8AM55DUIhd3WR83Eqf';
+    const message = `Your OTP is: ${otp}`;
+    const apiUrl = `https://api.sms.net.bd/sendsms?api_key=${apiKey}&msg=${encodeURIComponent(message)}&to=${mobile}`;
+
+    try {
+        const response = await Axios.get(apiUrl);
+        return response.data; // Assuming the API returns some data upon successful sending
+    } catch (error) {
+        console.error('Error sending OTP:', error);
+        throw new Error('Failed to send OTP');
+    }
+};
+
+
+const verifyOTP = asyncHandler(async (req, res) => {
+    const { mobile, otp } = req.body;
+
+    try {
+        // Assuming you have a model named 'Auth' where user data is stored
+        const user = await Auth.findOne({ mobile: mobile });
+        
+        if (!user) {
+            throw new Error('User not found');
+        }
+        if (user.otp != otp) {
+            throw new Error('Invalid OTP');
+        }
+
+        user.otpVerified = true; // Assuming 'verified' field exists in the user model
+        await user.save();
+        return res.status(200).json({
+            status: 200,
+            message: "OTP verified successfully",
+        });
+    } catch (error) {
+        console.error('Error verifying OTP:', error);
+
+        return res.status(400).json({
+            status: 400,
+            message: error.message,
+        });
+    }
+})
+
+
+
+
 
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -13,36 +63,45 @@ const registerUser = asyncHandler(async (req, res) => {
     const missingFields = requiredFields.filter(field => !requestBody[field]);
 
     if (missingFields.length > 0) {
-        res.status(400).json({
+        return res.status(400).json({
             status: 400,
             message: `Please provide all required fields: ${missingFields.join(', ')}`,
         });
-        return;
     }
 
     // Check if user already exists
     const userExistsWithNumber = await Auth.findOne({ mobile: requestBody.mobile });
-    const userExitsWithEmail = await Auth.findOne({ email: requestBody.email });
 
     if (userExistsWithNumber) {
-        res.status(400).json({
+        return res.status(400).json({
             status: 400,
             message: "You already have an account with this number.",
         });
-        return;
-    }
-    if (userExitsWithEmail) {
-        res.status(400).json({
-            status: 400,
-            message: "You already have an account with this email.",
-        });
-        return;
     }
 
-    // Create a new user with all the provided fields
-    const user = await Auth.create(requestBody);
+    if (requestBody.email) {
+        const userExistsWithEmail = await Auth.findOne({ email: requestBody.email });
 
-    if (user) {
+        if (userExistsWithEmail) {
+            return res.status(400).json({
+                status: 400,
+                message: "You already have an account with this email.",
+            });
+        }
+    }
+
+    // Generate random 4-digit OTP
+    const otp = Math.floor(1000 + Math.random() * 9000);
+
+    // Add OTP field
+    requestBody.otp = otp;
+
+    try {
+        // Send OTP to the provided mobile number
+        await sendOTP(requestBody.mobile, otp);
+
+        // Create a new user with all the provided fields
+        const user = await Auth.create(requestBody);
 
         const getDivision = await getDivisionByID(user.address.division_id);
         const getDistrict = await getDistrictByID(user.address.district_id);
@@ -77,15 +136,16 @@ const registerUser = asyncHandler(async (req, res) => {
                 },
                 access_token: token,
             },
-
         });
-    } else {
+    } catch (error) {
+        console.error('Error registering user:', error);
         res.status(400).json({
             status: 400,
             message: "Failed to create a new user",
         });
     }
 });
+
 
 const authUser = asyncHandler(async (req, res) => {
     const { mobile, password } = req.body;
@@ -273,4 +333,4 @@ const updateProfileActive = asyncHandler(async (req, res) => {
 });
 
 
-module.exports = { registerUser, authUser, logout, updateUserProfile, updateProfileActive }
+module.exports = { registerUser,verifyOTP, authUser, logout, updateUserProfile, updateProfileActive }

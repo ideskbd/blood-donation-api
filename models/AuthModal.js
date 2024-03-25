@@ -16,7 +16,9 @@ const AuthSchema = mongoose.Schema(
     {
         name: { type: String, required: true },
         mobile: { type: Number, required: true, unique: true },
-        email: { type: String, required: true, unique: true },
+        otp: { type: Number, required: true, },
+        otpVerified: { type: Boolean, required: false, default: false },
+        email: { type: String, required: false, unique: true },
         dob: { type: Date, required: true },
         blood_group: { type: String, required: true },
         occupation: { type: String, default: "" },
