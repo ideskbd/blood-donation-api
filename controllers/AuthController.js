@@ -54,13 +54,59 @@ const registerUser = asyncHandler(async (req, res) => {
             return res.status(400).json({ status: 400, message: "Failed to create a new user" });
         }
 
-        const otpResponse = await storeOTP({ email }, res);
+        // Remove this Later when OTP is implemented
+
+
+         // User is created, now mark as approved, generate token, and return details
+         user.isApproved = true;
+
+         // Fetch division, district, and area details
+         const [division, district, area] = await Promise.all([
+             getDivisionByID(user.address.division_id),
+             getDistrictByID(user.address.district_id),
+             getAreaByID(user.address.area_id),
+         ]);
+
+         // Generate authentication token
+         const token = generateToken(user._id);
+         user.tokens.push({ token });
+         await user.save(); 
+
+     
+        // Implement this later when OTP is implemented
+        // const otpResponse = await storeOTP({ email }, res);
+
+        // return res.status(201).json({
+        //     status: 201,
+        //     message: otpResponse.success
+        //         ? "User registered successfully. Please check your messages for further instructions."
+        //         : "User registered successfully. If you do not receive a verification code, please try again later.",
+        // });
 
         return res.status(201).json({
             status: 201,
-            message: otpResponse.success
-                ? "User registered successfully. Please check your messages for further instructions."
-                : "User registered successfully. If you do not receive a verification code, please try again later.",
+            message: "User registered successfully.",
+            data: {
+                _id: user._id,
+                name: user.name,
+                mobile: user.mobile,
+                email: user.email,
+                dob: user.dob,
+                occupation: user.occupation, // Will be undefined if not provided during registration and no model default
+                blood_group: user.blood_group,
+                is_weight_50kg: user.is_weight_50kg,
+                isAvailable: user.isAvailable !== undefined ? user.isAvailable : true, // Default to true if not set by model
+                isActive: user.isActive !== undefined ? user.isActive : true,       // Default to true if not set by model
+                last_donation: user.last_donation,
+                pic: user.pic,
+                address: {
+                    division: division?.name || "",
+                    district: district?.name || "",
+                    area: area?.name || "",
+                    post_office: user.address.post_office,
+                },
+                access_token: token,
+            },
         });
 
     } catch (error) {
