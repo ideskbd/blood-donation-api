@@ -12,6 +12,11 @@ const DonationRoute = require("./routes/DonationRoute");
 const SearchDonar = require("./routes/SearchBloodRoute");
 
 
+// Telegram Bot
+require("./controllers/TelegramBotController");
+const TelegramBotRoute = require("./routes/TelegramBotRoute");
+
+
 dotenv.config();
 
 const PORT = process.env.PORT || 4200;
@@ -25,6 +30,7 @@ app.use(express.json()); //to accept json data;
 app.get('/', (req, res) => {
     res.send("Yahoo! APP is running successfully!");
 });
+
 
 app.use('/v1/auth', AuthRouter);
 app.use('/v1', AddressRoute);
