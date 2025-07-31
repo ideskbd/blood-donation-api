@@ -41,7 +41,11 @@ app.use(notFound);
 app.use(errorHandler);
 
 app.listen(PORT, HOST, () => {
-    console.log(`Server running at http://${HOST}:${PORT}`);
+    console.log(`Server running at ${PORT}`);
 });
+
+// app.listen(PORT, HOST, () => {
+//     console.log(`Server running at http://${HOST}:${PORT}`);
+// });
 
 // app.listen(PORT, console.log(`Server start on PORT ${PORT}`.yellow.bold));
